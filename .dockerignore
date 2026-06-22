@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+.gitignore
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env*
+coverage
+.vscode
+*.md

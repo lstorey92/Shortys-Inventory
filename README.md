@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Shorty's Inventory
 
-## Getting Started
+Inventory pilot application for Shorty's Pizza Shack.
 
-First, run the development server:
+This implementation starts the MVP with:
+- Mobile-first inventory count workflow.
+- Multi-location session support.
+- Toast OAuth test endpoint and integration scaffold.
+- XtraCHEF health endpoint scaffold.
+- Prisma schema for future persistent storage.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Security First
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The Toast credentials currently shared in chat should be treated as exposed. Rotate the client secret in Toast before moving to staging or production.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tech Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Next.js 16 (App Router)
+- TypeScript
+- Tailwind CSS v4
+- Prisma ORM
+- Zod validation
 
-## Learn More
+## Setup
 
-To learn more about Next.js, take a look at the following resources:
+1. Copy .env.example to .env and fill in actual secrets.
+2. Install dependencies: npm install
+3. Generate Prisma client: npm run prisma:generate
+4. Start development server: npm run dev
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Open http://localhost:3000
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## AWS Free-Tier Deployment
 
-## Deploy on Vercel
+You can deploy this app on a single EC2 free-tier instance using Docker.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Deployment assets included:
+- Dockerfile
+- docker-compose.ec2.yml
+- .env.aws.example
+- scripts/aws/bootstrap-ec2.sh
+- scripts/aws/deploy-ec2.sh
+- deploy/aws-free-tier.md
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Start with the full guide in deploy/aws-free-tier.md.
+
+## Useful Scripts
+
+- npm run dev
+- npm run build
+- npm run lint
+- npm run typecheck
+- npm run prisma:generate
+- npm run prisma:migrate
+
+## Implemented API Endpoints
+
+- GET /api/health
+- GET /api/integrations/toast/token
+- GET /api/integrations/xtrachef/health
+- GET /api/count/locations
+- POST /api/count/sessions
+- GET /api/count/sessions/:sessionId
+- PATCH /api/count/sessions/:sessionId
+- GET /api/count/sessions/:sessionId/export
+- GET /api/integrations/toast/sync
+- POST /api/integrations/toast/sync
+- GET /api/integrations/toast/schedule
+- POST /api/integrations/toast/schedule
+- GET /api/mappings
+- POST /api/mappings
+
+## Notes
+
+- Count sessions and integration catalog now use Prisma-backed pilot models when DATABASE_URL is reachable.
+- If the database is unavailable, the app gracefully falls back to in-memory storage to avoid blocking field testing.
+- The Prisma schema is ready for migration when you connect a Postgres database.
+- Write routes enforce role gates using the x-user-role header during bootstrap (STAFF, MANAGER, OWNER).
