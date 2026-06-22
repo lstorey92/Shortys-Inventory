@@ -53,17 +53,43 @@ if (-not $sgId -or $sgId -eq "None") {
   $sgId = aws ec2 create-security-group --region $Region --group-name $SecurityGroupName --description "Shortys Inventory security group" --vpc-id $vpcId --query "GroupId" --output text
 }
 
-$sshRuleExists = aws ec2 describe-security-groups --region $Region --group-ids $sgId --query "SecurityGroups[0].IpPermissions[?FromPort==\`22\` && ToPort==\`22\` && IpProtocol=='tcp'] | length(@)" --output text
-if ($sshRuleExists -eq "0") {
-  aws ec2 authorize-security-group-ingress --region $Region --group-id $sgId --ip-permissions "[{\"IpProtocol\":\"tcp\",\"FromPort\":22,\"ToPort\":22,\"IpRanges\":[{\"CidrIp\":\"$SshCidr\",\"Description\":\"SSH access\"}]}]" | Out-Null
+$sgDoc = aws ec2 describe-security-groups --region $Region --group-ids $sgId --output json | ConvertFrom-Json
+$permissions = $sgDoc.SecurityGroups[0].IpPermissions
+
+$sshRuleExists = $false
+foreach ($permission in $permissions) {
+  if ($permission.IpProtocol -eq "tcp" -and $permission.FromPort -eq 22 -and $permission.ToPort -eq 22) {
+    $sshRuleExists = $true
+    break
+  }
 }
 
-$httpRuleExists = aws ec2 describe-security-groups --region $Region --group-ids $sgId --query "SecurityGroups[0].IpPermissions[?FromPort==\`80\` && ToPort==\`80\` && IpProtocol=='tcp'] | length(@)" --output text
-if ($httpRuleExists -eq "0") {
-  aws ec2 authorize-security-group-ingress --region $Region --group-id $sgId --ip-permissions "[{\"IpProtocol\":\"tcp\",\"FromPort\":80,\"ToPort\":80,\"IpRanges\":[{\"CidrIp\":\"0.0.0.0/0\",\"Description\":\"HTTP\"}]}]" | Out-Null
+if (-not $sshRuleExists) {
+  aws ec2 authorize-security-group-ingress --region $Region --group-id $sgId --protocol tcp --port 22 --cidr $SshCidr | Out-Null
 }
 
-$keyExists = aws ec2 describe-key-pairs --region $Region --key-names $KeyName --query "KeyPairs[0].KeyName" --output text 2>$null
+$httpRuleExists = $false
+foreach ($permission in $permissions) {
+  if ($permission.IpProtocol -eq "tcp" -and $permission.FromPort -eq 80 -and $permission.ToPort -eq 80) {
+    $httpRuleExists = $true
+    break
+  }
+}
+
+if (-not $httpRuleExists) {
+  aws ec2 authorize-security-group-ingress --region $Region --group-id $sgId --protocol tcp --port 80 --cidr 0.0.0.0/0 | Out-Null
+}
+
+$keyExists = $false
+try {
+  $null = aws ec2 describe-key-pairs --region $Region --key-names $KeyName --query "KeyPairs[0].KeyName" --output text 2>$null
+  if ($LASTEXITCODE -eq 0) {
+    $keyExists = $true
+  }
+} catch {
+  $keyExists = $false
+}
+
 if (-not $keyExists) {
   Write-Host "Creating key pair: $KeyName"
   $keyMaterial = aws ec2 create-key-pair --region $Region --key-name $KeyName --query "KeyMaterial" --output text
@@ -72,7 +98,17 @@ if (-not $keyExists) {
   Write-Host "Saved key pair to: $keyPath"
 }
 
-$amiId = aws ssm get-parameter --region $Region --name "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64" --query "Parameter.Value" --output text
+$amiId = ""
+try {
+  $amiId = aws ssm get-parameter --region $Region --name "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64" --query "Parameter.Value" --output text 2>$null
+} catch {
+  $amiId = ""
+}
+
+if (-not $amiId -or $amiId -eq "None") {
+  $amiId = aws ec2 describe-images --region $Region --owners amazon --filters Name=name,Values="al2023-ami-2023.*-x86_64" Name=state,Values=available --query "sort_by(Images,&CreationDate)[-1].ImageId" --output text
+}
+
 if (-not $amiId -or $amiId -eq "None") {
   throw "Unable to resolve Amazon Linux 2023 AMI in region $Region."
 }
