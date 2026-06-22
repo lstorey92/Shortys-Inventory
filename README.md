@@ -44,6 +44,21 @@ Deployment assets included:
 
 Start with the full guide in deploy/aws-free-tier.md.
 
+## Git Repository Setup
+
+This project already has a local git history. To connect it to GitHub:
+
+1. Create an empty GitHub repository.
+2. Add remote:
+	git remote add origin https://github.com/<your-org>/<your-repo>.git
+3. Push current branch:
+	git push -u origin master
+
+If you prefer main as default branch:
+
+1. git branch -M main
+2. git push -u origin main
+
 ## Useful Scripts
 
 - npm run dev
